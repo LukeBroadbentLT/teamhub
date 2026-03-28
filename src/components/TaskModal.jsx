@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { X, Calendar, ExternalLink, Trash2, Save } from 'lucide-react'
-import { TEAM_MEMBERS, PRIORITIES } from '../lib/supabase'
+import { PRIORITIES } from '../lib/supabase'
+import { useAuth } from '../lib/AuthContext'
 import { format } from 'date-fns'
 
 function buildGCalUrl(task) {
@@ -13,12 +14,13 @@ function buildGCalUrl(task) {
 }
 
 export default function TaskModal({ task, onClose, onSave, onDelete, currentUser }) {
+  const { allProfiles } = useAuth()
   const isNew = !task?.id
   const [form, setForm] = useState({
     title: '',
     description: '',
     status: 'set',
-    assignee_id: currentUser || 'alex',
+    assignee_id: currentUser || (allProfiles[0]?.id ?? ''),
     priority: 'medium',
     due_date: '',
     ...task,
@@ -87,8 +89,8 @@ export default function TaskModal({ task, onClose, onSave, onDelete, currentUser
           <div className="form-group">
             <label>Assigned to</label>
             <select value={form.assignee_id} onChange={e => set('assignee_id', e.target.value)}>
-              {TEAM_MEMBERS.map(m => (
-                <option key={m.id} value={m.id}>{m.name} — {m.role}</option>
+              {allProfiles.map(m => (
+                <option key={m.id} value={m.id}>{m.name}{m.role ? ` — ${m.role}` : ''}</option>
               ))}
             </select>
           </div>

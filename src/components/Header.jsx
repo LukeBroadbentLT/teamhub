@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react'
-import { Bell, BellRing, Check, Trash2, AlertTriangle, Clock, UserPlus } from 'lucide-react'
-import { TEAM_MEMBERS, getMember } from '../lib/supabase'
+import { Bell, BellRing, Check, Trash2, AlertTriangle, Clock, UserPlus, LogOut, Settings } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
+import { useAuth } from '../lib/AuthContext'
+import ProfileModal from './ProfileModal'
 
 const NOTIF_ICONS = {
   overdue: <AlertTriangle size={14} color="#ff6584" />,
@@ -9,12 +10,14 @@ const NOTIF_ICONS = {
   assign:  <UserPlus size={14} color="#6c63ff" />,
 }
 
-export default function Header({ currentUser, setCurrentUser, notifications, markAllRead, clearAll, requestPermission, permission, pageTitle }) {
-  const [showNotifs, setShowNotifs] = useState(false)
-  const [showUserMenu, setShowUserMenu] = useState(false)
+export default function Header({ notifications, markAllRead, clearAll, requestPermission, permission, pageTitle }) {
+  const { profile, signOut } = useAuth()
+  const [showNotifs,  setShowNotifs]  = useState(false)
+  const [showUserMenu,setShowUserMenu]= useState(false)
+  const [showProfile, setShowProfile] = useState(false)
   const notifsRef = useRef(null)
-  const userRef = useRef(null)
-  const unread = notifications.filter(n => !n.read).length
+  const userRef   = useRef(null)
+  const unread    = notifications.filter(n => !n.read).length
 
   useEffect(() => {
     function handleClick(e) {
@@ -25,9 +28,10 @@ export default function Header({ currentUser, setCurrentUser, notifications, mar
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
 
-  const member = getMember(currentUser)
+  const member = profile || { name: '…', initials: '…', avatar_color: '#6c63ff', role: '' }
 
   return (
+    <>
     <header style={{
       height: 60,
       background: 'var(--bg-panel)',
@@ -147,7 +151,7 @@ export default function Header({ currentUser, setCurrentUser, notifications, mar
           )}
         </div>
 
-        {/* User Switcher */}
+        {/* Profile button */}
         <div ref={userRef} style={{ position: 'relative' }}>
           <button
             onClick={() => setShowUserMenu(v => !v)}
@@ -162,12 +166,12 @@ export default function Header({ currentUser, setCurrentUser, notifications, mar
               color: 'var(--text)',
             }}
           >
-            <div className="avatar" style={{ background: member.color, width: 28, height: 28, fontSize: 11 }}>
+            <div className="avatar" style={{ background: member.avatar_color, width: 28, height: 28, fontSize: 11 }}>
               {member.initials}
             </div>
             <div style={{ textAlign: 'left' }}>
               <div style={{ fontSize: 13, fontWeight: 700, lineHeight: 1 }}>{member.name}</div>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'DM Mono' }}>{member.role}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'DM Mono' }}>{member.role || 'Team Member'}</div>
             </div>
             <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style={{ color: 'var(--text-muted)' }}>
               <path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -180,7 +184,7 @@ export default function Header({ currentUser, setCurrentUser, notifications, mar
               top: '100%',
               right: 0,
               marginTop: 8,
-              width: 200,
+              width: 220,
               background: 'var(--bg-panel)',
               border: '1px solid var(--border)',
               borderRadius: 'var(--radius)',
@@ -188,39 +192,64 @@ export default function Header({ currentUser, setCurrentUser, notifications, mar
               zIndex: 200,
               overflow: 'hidden',
             }} className="fade-in">
-              <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--border-2)', fontSize: 11, color: 'var(--text-dim)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                Switch User
+              {/* Identity header */}
+              <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border-2)', display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div className="avatar" style={{ background: member.avatar_color, width: 36, height: 36, fontSize: 13 }}>
+                  {member.initials}
+                </div>
+                <div style={{ minWidth: 0 }}>
+                  <p style={{ fontWeight: 700, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{member.name}</p>
+                  <p style={{ fontSize: 11, color: 'var(--text-dim)', fontFamily: 'DM Mono', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{member.email}</p>
+                </div>
               </div>
-              {TEAM_MEMBERS.map(m => (
-                <button
-                  key={m.id}
-                  onClick={() => { setCurrentUser(m.id); setShowUserMenu(false) }}
-                  style={{
-                    width: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 10,
-                    padding: '10px 14px',
-                    background: currentUser === m.id ? 'var(--purple-dim)' : 'transparent',
-                    color: currentUser === m.id ? 'var(--purple)' : 'var(--text)',
-                    fontSize: 14,
-                    fontWeight: currentUser === m.id ? 700 : 400,
-                  }}
-                  onMouseEnter={e => { if (currentUser !== m.id) e.currentTarget.style.background = 'var(--bg-hover)' }}
-                  onMouseLeave={e => { if (currentUser !== m.id) e.currentTarget.style.background = 'transparent' }}
-                >
-                  <div className="avatar" style={{ background: m.color, width: 28, height: 28, fontSize: 11 }}>{m.initials}</div>
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 600 }}>{m.name}</div>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'DM Mono' }}>{m.role}</div>
-                  </div>
-                  {currentUser === m.id && <Check size={14} style={{ marginLeft: 'auto' }} />}
-                </button>
-              ))}
+
+              {/* Edit profile */}
+              <button
+                onClick={() => { setShowUserMenu(false); setShowProfile(true) }}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  padding: '11px 16px',
+                  background: 'transparent',
+                  color: 'var(--text)',
+                  fontSize: 13,
+                  fontWeight: 500,
+                  borderBottom: '1px solid var(--border-2)',
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+              >
+                <Settings size={14} color="var(--text-muted)" /> Edit Profile & Colour
+              </button>
+
+              {/* Sign out */}
+              <button
+                onClick={async () => { setShowUserMenu(false); await signOut() }}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  padding: '11px 16px',
+                  background: 'transparent',
+                  color: 'var(--pink)',
+                  fontSize: 13,
+                  fontWeight: 600,
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,101,132,0.08)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+              >
+                <LogOut size={14} /> Sign Out
+              </button>
             </div>
           )}
         </div>
       </div>
     </header>
+
+    {showProfile && <ProfileModal onClose={() => setShowProfile(false)} />}
+  </>
   )
 }

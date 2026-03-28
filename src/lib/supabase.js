@@ -5,11 +5,12 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
+// Static fallback — used before profiles load from DB
 export const TEAM_MEMBERS = [
-  { id: 'alex',   name: 'Alex',   color: '#6c63ff', initials: 'AL', role: 'Frontend Dev' },
-  { id: 'jordan', name: 'Jordan', color: '#43e97b', initials: 'JO', role: 'Backend Dev' },
-  { id: 'sam',    name: 'Sam',    color: '#f9ca24', initials: 'SA', role: 'Designer' },
-  { id: 'riley',  name: 'Riley',  color: '#ff6584', initials: 'RI', role: 'Product Manager' },
+  { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', name: 'Corey Turner',    avatar_color: '#6c63ff', initials: 'CT', role: 'Team Member', email: 'corey@livingstonetemple.com' },
+  { id: 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a12', name: 'David Onaolapo',  avatar_color: '#43e97b', initials: 'DO', role: 'Team Member', email: 'david@livingstonetemple.com' },
+  { id: 'c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a13', name: 'Lenin Manirajah', avatar_color: '#f9ca24', initials: 'LM', role: 'Team Member', email: 'lenin@livingstonetemple.com' },
+  { id: 'd0eebc99-9c0b-4ef8-bb6d-6bb9bd380a14', name: 'Luke Broadbent',  avatar_color: '#ff6584', initials: 'LB', role: 'Team Member', email: 'luke@livingstonetempleton.com' },
 ]
 
 export const CHANNELS = [
@@ -26,6 +27,12 @@ export const PRIORITIES = {
   urgent: { label: 'Urgent', color: '#ff4757', bg: 'rgba(255,71,87,0.2)'   },
 }
 
-export function getMember(id) {
-  return TEAM_MEMBERS.find(m => m.id === id) || TEAM_MEMBERS[0]
+// Static fallback — components should prefer getProfile() from AuthContext
+export function getMember(id, profiles) {
+  const list = profiles || TEAM_MEMBERS
+  return (
+    list.find(m => m.id === id) ||
+    TEAM_MEMBERS.find(m => m.id === id) ||
+    { id, name: 'Unknown', initials: '??', avatar_color: '#555577', role: '' }
+  )
 }

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { Send, Paperclip, Mic, MicOff, Volume2, Hash, Download, Image, FileText, X, Smile } from 'lucide-react'
-import { CHANNELS, getMember, supabase } from '../lib/supabase'
+import { Send, Paperclip, Mic, MicOff, Volume2, Hash, Download, FileText, Smile } from 'lucide-react'
+import { CHANNELS, supabase } from '../lib/supabase'
+import { useAuth } from '../lib/AuthContext'
 import { useMessages } from '../lib/hooks'
 import { format, isToday, isYesterday } from 'date-fns'
 
@@ -67,10 +68,10 @@ function FilePreview({ url, name, type, isVoice }) {
   )
 }
 
-function Message({ msg, prevMsg }) {
-  const member = getMember(msg.user_id)
+function Message({ msg, prevMsg, getProfile }) {
+  const member = getProfile(msg.user_id)
   const ts = new Date(msg.created_at)
-  const prevMember = prevMsg ? getMember(prevMsg.user_id) : null
+  const prevMember = prevMsg ? getProfile(prevMsg.user_id) : null
   const isGrouped = prevMsg && prevMember?.id === member.id &&
     (ts - new Date(prevMsg.created_at)) < 5 * 60 * 1000
 
@@ -86,7 +87,7 @@ function Message({ msg, prevMsg }) {
       marginTop: isGrouped ? 0 : 4,
     }}>
       {!isGrouped ? (
-        <div className="avatar" style={{ background: member.color, width: 36, height: 36, fontSize: 12, marginTop: 2, flexShrink: 0 }}>
+        <div className="avatar" style={{ background: member.avatar_color || '#6c63ff', width: 36, height: 36, fontSize: 12, marginTop: 2, flexShrink: 0 }}>
           {member.initials}
         </div>
       ) : (
@@ -95,7 +96,7 @@ function Message({ msg, prevMsg }) {
       <div style={{ flex: 1, minWidth: 0 }}>
         {!isGrouped && (
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginBottom: 3 }}>
-            <span style={{ fontWeight: 700, fontSize: 14, color: member.color }}>{member.name}</span>
+            <span style={{ fontWeight: 700, fontSize: 14, color: member.avatar_color || '#6c63ff' }}>{member.name}</span>
             <span style={{ fontSize: 11, color: 'var(--text-dim)', fontFamily: 'DM Mono' }}>{formatTime(ts)}</span>
           </div>
         )}
@@ -138,6 +139,7 @@ function DateDivider({ date }) {
 }
 
 export default function TeamChat({ currentUser }) {
+  const { getProfile } = useAuth()
   const [activeChannel, setActiveChannel] = useState('general')
   const { messages, loading, sendMessage } = useMessages(activeChannel)
   const [input, setInput]       = useState('')
@@ -392,7 +394,7 @@ export default function TeamChat({ currentUser }) {
             groupedMessages.map(item =>
               item.type === 'divider'
                 ? <DateDivider key={item.key} date={item.date} />
-                : <Message key={item.key} msg={item.msg} prevMsg={item.prev} />
+                : <Message key={item.key} msg={item.msg} prevMsg={item.prev} getProfile={getProfile} />
             )
           )}
           <div ref={messagesEndRef} />

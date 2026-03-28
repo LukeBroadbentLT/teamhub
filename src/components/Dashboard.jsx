@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
-import { CheckCircle2, Circle, AlertCircle, Clock, TrendingUp, Users, Zap, Calendar } from 'lucide-react'
-import { TEAM_MEMBERS, PRIORITIES, getMember } from '../lib/supabase'
+import { CheckCircle2, Circle, AlertCircle, Clock, TrendingUp, Users, Zap } from 'lucide-react'
+import { PRIORITIES } from '../lib/supabase'
+import { useAuth } from '../lib/AuthContext'
 import { format, isPast, isToday, parseISO } from 'date-fns'
 
 function StatCard({ icon, label, value, color, sub }) {
@@ -25,6 +26,7 @@ function StatCard({ icon, label, value, color, sub }) {
 }
 
 function MemberCard({ member, tasks }) {
+  const color    = member.avatar_color || '#6c63ff'
   const myTasks  = tasks.filter(t => t.assignee_id === member.id)
   const done     = myTasks.filter(t => t.status === 'done').length
   const doing    = myTasks.filter(t => t.status === 'doing').length
@@ -39,12 +41,12 @@ function MemberCard({ member, tasks }) {
   return (
     <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <div className="avatar" style={{ background: member.color, width: 44, height: 44, fontSize: 14 }}>
+        <div className="avatar" style={{ background: color, width: 44, height: 44, fontSize: 14 }}>
           {member.initials}
         </div>
         <div>
           <p style={{ fontWeight: 700, fontSize: 15 }}>{member.name}</p>
-          <p style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'DM Mono' }}>{member.role}</p>
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'DM Mono' }}>{member.role || 'Team Member'}</p>
         </div>
         {overdue > 0 && (
           <span style={{ marginLeft: 'auto', background: 'var(--pink-dim)', color: 'var(--pink)', padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 700, fontFamily: 'DM Mono' }}>
@@ -57,13 +59,13 @@ function MemberCard({ member, tasks }) {
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
           <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{done}/{total} tasks done</span>
-          <span style={{ fontSize: 12, fontWeight: 700, color: member.color, fontFamily: 'DM Mono' }}>{progress}%</span>
+          <span style={{ fontSize: 12, fontWeight: 700, color, fontFamily: 'DM Mono' }}>{progress}%</span>
         </div>
         <div style={{ height: 6, background: 'var(--bg-hover)', borderRadius: 3, overflow: 'hidden' }}>
           <div style={{
             height: '100%',
             width: `${progress}%`,
-            background: `linear-gradient(90deg, ${member.color}80, ${member.color})`,
+            background: `linear-gradient(90deg, ${color}80, ${color})`,
             borderRadius: 3,
             transition: 'width 0.6s ease',
           }} />
@@ -76,14 +78,14 @@ function MemberCard({ member, tasks }) {
           { label: 'Set',   count: set,   color: 'var(--text-dim)' },
           { label: 'Doing', count: doing, color: 'var(--yellow)' },
           { label: 'Done',  count: done,  color: 'var(--green)' },
-        ].map(({ label, count, color }) => (
+        ].map(({ label, count, color: c }) => (
           <div key={label} style={{
             flex: 1, textAlign: 'center',
             background: 'var(--bg-hover)',
             borderRadius: 8,
             padding: '6px 4px',
           }}>
-            <p style={{ fontSize: 16, fontWeight: 700, color, fontFamily: 'DM Mono' }}>{count}</p>
+            <p style={{ fontSize: 16, fontWeight: 700, color: c, fontFamily: 'DM Mono' }}>{count}</p>
             <p style={{ fontSize: 11, color: 'var(--text-dim)' }}>{label}</p>
           </div>
         ))}
@@ -92,8 +94,8 @@ function MemberCard({ member, tasks }) {
   )
 }
 
-function RecentTask({ task }) {
-  const member = getMember(task.assignee_id)
+function RecentTask({ task, getProfile }) {
+  const member = getProfile(task.assignee_id)
   const p = PRIORITIES[task.priority] || PRIORITIES.medium
   const due = task.due_date ? parseISO(task.due_date) : null
   const isOverdue = due && isPast(due) && !isToday(due) && task.status !== 'done'
@@ -131,12 +133,14 @@ function RecentTask({ task }) {
         )}
       </div>
       <span className="badge" style={{ color: p.color, background: p.bg }}>{p.label}</span>
-      <div className="avatar" style={{ background: member.color, width: 24, height: 24, fontSize: 10 }}>{member.initials}</div>
+      <div className="avatar" style={{ background: member.avatar_color || '#6c63ff', width: 24, height: 24, fontSize: 10 }}>{member.initials}</div>
     </div>
   )
 }
 
 export default function Dashboard({ tasks, currentUser, onNavigate }) {
+  const { allProfiles, getProfile } = useAuth()
+
   const stats = useMemo(() => {
     const total   = tasks.length
     const done    = tasks.filter(t => t.status === 'done').length
@@ -173,7 +177,7 @@ export default function Dashboard({ tasks, currentUser, onNavigate }) {
           <p style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'DM Mono' }}>{format(new Date(), 'EEEE, MMMM d')}</p>
           <h2 style={{ fontSize: 20, marginTop: 2 }}>
             Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'},{' '}
-            <span style={{ color: 'var(--purple)' }}>{getMember(currentUser).name}</span>
+            <span style={{ color: 'var(--purple)' }}>{getProfile(currentUser).name.split(' ')[0]}</span>
           </h2>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
@@ -200,7 +204,7 @@ export default function Dashboard({ tasks, currentUser, onNavigate }) {
             <h3 style={{ fontSize: 15, fontWeight: 700 }}>Team Overview</h3>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-            {TEAM_MEMBERS.map(m => <MemberCard key={m.id} member={m} tasks={tasks} />)}
+            {allProfiles.map(m => <MemberCard key={m.id} member={m} tasks={tasks} />)}
           </div>
         </div>
 
@@ -213,7 +217,7 @@ export default function Dashboard({ tasks, currentUser, onNavigate }) {
           <div className="card" style={{ padding: '4px 16px' }}>
             {recentTasks.length === 0 ? (
               <p style={{ textAlign: 'center', color: 'var(--text-dim)', padding: 24, fontSize: 13 }}>No tasks yet</p>
-            ) : recentTasks.map(t => <RecentTask key={t.id} task={t} />)}
+            ) : recentTasks.map(t => <RecentTask key={t.id} task={t} getProfile={getProfile} />)}
           </div>
         </div>
       </div>

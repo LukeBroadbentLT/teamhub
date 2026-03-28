@@ -14,7 +14,8 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { Plus, GripVertical, Calendar, ExternalLink, AlertTriangle, Clock } from 'lucide-react'
-import { PRIORITIES, getMember } from '../lib/supabase'
+import { PRIORITIES } from '../lib/supabase'
+import { useAuth } from '../lib/AuthContext'
 import { format, isPast, isToday, parseISO } from 'date-fns'
 import TaskModal from './TaskModal'
 
@@ -33,9 +34,9 @@ function buildGCalUrl(task) {
   return `${base}&text=${title}&details=${desc}${dates}`
 }
 
-function TaskCard({ task, onEdit, isDragging }) {
+function TaskCard({ task, onEdit, getProfile }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging: isSortDragging } = useSortable({ id: task.id })
-  const member  = getMember(task.assignee_id)
+  const member  = getProfile(task.assignee_id)
   const p       = PRIORITIES[task.priority] || PRIORITIES.medium
   const due     = task.due_date ? parseISO(task.due_date) : null
   const overdue = due && isPast(due) && !isToday(due) && task.status !== 'done'
@@ -135,7 +136,7 @@ function TaskCard({ task, onEdit, isDragging }) {
 
         {/* Footer */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div className="avatar" style={{ background: member.color, width: 24, height: 24, fontSize: 10 }}>
+          <div className="avatar" style={{ background: member.avatar_color || '#6c63ff', width: 24, height: 24, fontSize: 10 }}>
             {member.initials}
           </div>
           {due && (
@@ -157,7 +158,7 @@ function TaskCard({ task, onEdit, isDragging }) {
   )
 }
 
-function Column({ col, tasks, onEdit, onAddTask }) {
+function Column({ col, tasks, onEdit, onAddTask, getProfile }) {
   const [isOver, setIsOver] = useState(false)
 
   return (
@@ -223,7 +224,7 @@ function Column({ col, tasks, onEdit, onAddTask }) {
       <div style={{ flex: 1, overflowY: 'auto', padding: 12, display: 'flex', flexDirection: 'column', gap: 8, minHeight: 120 }}>
         <SortableContext items={tasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
           {tasks.map(task => (
-            <TaskCard key={task.id} task={task} onEdit={onEdit} />
+            <TaskCard key={task.id} task={task} onEdit={onEdit} getProfile={getProfile} />
           ))}
         </SortableContext>
         {tasks.length === 0 && (
@@ -253,6 +254,7 @@ function Column({ col, tasks, onEdit, onAddTask }) {
 }
 
 export default function KanbanBoard({ tasks, currentUser, createTask, updateTask, deleteTask, moveTask, addNotification }) {
+  const { allProfiles, getProfile } = useAuth()
   const [editTask, setEditTask]   = useState(null)
   const [modalOpen, setModalOpen] = useState(false)
   const [activeId, setActiveId]   = useState(null)
@@ -320,7 +322,7 @@ export default function KanbanBoard({ tasks, currentUser, createTask, updateTask
         addNotification({
           type: 'assign',
           title: 'Task Created',
-          body: `"${form.title}" assigned to ${getMember(form.assignee_id).name}`,
+          body: `"${form.title}" assigned to ${getProfile(form.assignee_id).name}`,
         })
       }
     }
@@ -351,7 +353,7 @@ export default function KanbanBoard({ tasks, currentUser, createTask, updateTask
             style={{ width: 'auto', padding: '6px 10px', fontSize: 13 }}
           >
             <option value="all">All Team</option>
-            {[{id:'alex',name:'Alex'},{id:'jordan',name:'Jordan'},{id:'sam',name:'Sam'},{id:'riley',name:'Riley'}].map(m => (
+            {allProfiles.map(m => (
               <option key={m.id} value={m.id}>{m.name}</option>
             ))}
           </select>
@@ -378,6 +380,7 @@ export default function KanbanBoard({ tasks, currentUser, createTask, updateTask
                 tasks={col.tasks}
                 onEdit={openEdit}
                 onAddTask={openNewTask}
+                getProfile={getProfile}
               />
             ))}
           </div>
